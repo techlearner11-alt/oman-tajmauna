@@ -2,11 +2,12 @@ const $=s=>document.querySelector(s);
 let state;
 try{state=JSON.parse(localStorage.getItem("omanTogether_v1")||"null")||{};}catch(e){state={};}
 // حافظ على بيانات الإصدارات السابقة وأضف الحقول الجديدة عند الحاجة.
-state=Object.assign({points:0,done:[],messages:[],name:"",visitedGov:[],routeDone:[]},state);
+state=Object.assign({points:0,done:[],messages:[],name:"",visitedGov:[],routeDone:[],avatar:"🧭",avatarName:"المستكشف"},state);
 state.done=Array.isArray(state.done)?state.done:[];
 state.messages=Array.isArray(state.messages)?state.messages:[];
 state.visitedGov=Array.isArray(state.visitedGov)?state.visitedGov:[];
 state.routeDone=Array.isArray(state.routeDone)?state.routeDone:[];
+state.avatar=state.avatar||"🧭";state.avatarName=state.avatarName||"المستكشف";
 const save=()=>{localStorage.setItem("omanTogether_v1",JSON.stringify(state));renderProgress()};
 const ar=n=>new Intl.NumberFormat("ar").format(n);
 const modal=$("#modal"),content=$("#modalContent");
@@ -108,3 +109,30 @@ function openRouteStop(i){
  content.querySelectorAll("[data-route-answer]").forEach(btn=>btn.onclick=()=>{if(btn.disabled)return;const ok=+btn.dataset.routeAnswer===stop.correct;content.querySelectorAll("[data-route-answer]").forEach(x=>x.disabled=true);btn.classList.add(ok?"right":"wrong");if(ok){if(!state.routeDone.includes(i)){state.routeDone.push(i);state.points+=15;save();renderExplorerRoute();toast("أُنجزت المحطة! أضيفت ١٥ نقطة.")}$("#routeFeedback").textContent=stop.success+(i<routeStops.length-1?" أصبحت المحطة التالية متاحة الآن.":" لقد أكملت رحلة المستكشف!");}else{$("#routeFeedback").textContent="ليست الإجابة الصحيحة. راجع المعلومة وحاول مرة أخرى في زيارة جديدة.";}});
 }
 renderExplorerRoute();
+
+
+// حقيبة كنوز عُمان: مقتنيات مرئية تُفتح بالإنجازات الحالية دون تغيير النقاط أو حذف البيانات.
+const treasureItems=[
+ {key:"gov0",icon:"🏛️",name:"بوابة مسقط",kind:"gov",index:0},{key:"gov1",icon:"🌿",name:"نسيم ظفار",kind:"gov",index:1},{key:"gov2",icon:"⛰️",name:"خلجان مسندم",kind:"gov",index:2},{key:"gov3",icon:"🐪",name:"واحة البريمي",kind:"gov",index:3},{key:"gov4",icon:"🏰",name:"قلعة الداخلية",kind:"gov",index:4},{key:"gov5",icon:"⚓",name:"مرسى الباطنة",kind:"gov",index:5},{key:"gov6",icon:"🏜️",name:"رمال الشرقية",kind:"gov",index:6},{key:"gov7",icon:"⛵",name:"مركب صور",kind:"gov",index:7},{key:"gov8",icon:"🧭",name:"أثر الظاهرة",kind:"gov",index:8},{key:"gov9",icon:"🧭",name:"قافلة الظاهرة",kind:"gov",index:9},{key:"gov10",icon:"🐬",name:"كنز الوسطى",kind:"gov",index:10},
+ {key:"route0",icon:"🗝️",name:"مفتاح نزوى",kind:"route",index:0},{key:"route1",icon:"🍃",name:"ورقة الخريف",kind:"route",index:1},{key:"route2",icon:"⛵",name:"شراع صور",kind:"route",index:2},{key:"route3",icon:"💎",name:"جوهرة مسندم",kind:"route",index:3}
+];
+function renderTreasureBag(){
+ const grid=$("#treasureGrid");if(!grid)return;
+ const count=treasureItems.filter(x=>x.kind==="gov"?state.visitedGov.includes(x.index):state.routeDone.includes(x.index)).length;
+ $("#treasureCount").textContent=`${ar(count)} / ١٥`;
+ grid.innerHTML=treasureItems.map(x=>{const unlocked=x.kind==="gov"?state.visitedGov.includes(x.index):state.routeDone.includes(x.index);return `<div class="treasure-item ${unlocked?"unlocked":"locked"}" title="${unlocked?x.name:"أكمل التحدي لفتح هذا الكنز"}"><span>${unlocked?x.icon:"🔒"}</span><small>${x.name}</small></div>`}).join("");
+}
+function renderCompanion(){
+ if($("#companionAvatar"))$("#companionAvatar").textContent=state.avatar;
+ if($("#companionName"))$("#companionName").textContent=state.avatarName;
+ document.querySelectorAll(".companion-choice").forEach(b=>b.classList.toggle("selected",b.dataset.avatar===state.avatar));
+ const oldCharacter=document.querySelector(".character-person");if(oldCharacter)oldCharacter.textContent=state.avatar;
+}
+document.querySelectorAll(".companion-choice").forEach(b=>b.addEventListener("click",()=>{state.avatar=b.dataset.avatar;state.avatarName=b.dataset.name;save();renderCompanion();toast(`أصبح ${state.avatarName} رفيق رحلتك!`)}));
+renderTreasureBag();renderCompanion();
+// تحديث الحقيبة مباشرة بعد أي زيارة لمحافظة أو إكمال محطة مستكشف.
+const originalRenderGovernorates=renderGovernorates;
+renderGovernorates=function(){originalRenderGovernorates();renderTreasureBag()};
+const originalRenderExplorerRoute=renderExplorerRoute;
+renderExplorerRoute=function(){originalRenderExplorerRoute();renderTreasureBag()};
+renderTreasureBag();
